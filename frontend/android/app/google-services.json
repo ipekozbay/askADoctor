@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "582512620485",
+    "project_id": "doktora-sor-9b872",
+    "storage_bucket": "doktora-sor-9b872.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582512620485:android:5d6acd3ed0e61a729151ac",
+        "android_client_info": {
+          "package_name": "com.example.doktora_sor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "582512620485-t2hlmac1aqiadqaljgu8m8edkb3upg7m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1ucWxrbcecEN19mnNS4Rxwgf2ns_dAgo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "582512620485-t2hlmac1aqiadqaljgu8m8edkb3upg7m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
