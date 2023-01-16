@@ -70,6 +70,7 @@ class DoktorUser extends ChangeNotifier {
         }
         kullaniciAdi =
             "${userData['ad'] as String} ${userData['soyad'] as String}";
+        cinsiyet = userData['cinsiyet'] as String;
         doktor.ad = userData['ad'] as String;
         doktor.soyad = userData['soyad'] as String;
         doktor.cinsiyet = userData['cinsiyet'] as String;

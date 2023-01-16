@@ -64,6 +64,7 @@ class HastaUser extends ChangeNotifier{
           return;
         }
         kullaniciAdi = "${userData['ad']} ${userData['soyad']}";
+        cinsiyet = userData['cinsiyet'];
         hasta.ad = userData['ad'];
         hasta.soyad = userData['soyad'];
         hasta.yas = userData['yas'];

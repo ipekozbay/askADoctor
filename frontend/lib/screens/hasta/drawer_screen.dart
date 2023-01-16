@@ -6,17 +6,29 @@ import '../hasta/profil_duzenleme_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class HastaDrawerScreen extends StatelessWidget {
-  const HastaDrawerScreen({Key? key}) : super(key: key);
+class HastaDrawerScreen extends StatefulWidget {
+
+
+  @override
+  State<HastaDrawerScreen> createState() => _HastaDrawerScreenState();
+}
+
+class _HastaDrawerScreenState extends State<HastaDrawerScreen> {
+  var cinsiyet;
+  bool init = true;
+  @override
+  void didChangeDependencies() {
+    if(init){
+      cinsiyet = Provider.of<HastaUser>(context, listen: false).cinsiyet;
+      init = false;
+    }
+
+    super.didChangeDependencies();
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    var cinsiyet;
-    Provider.of<HastaUser>(context, listen: false)
-        .fetch_hasta_bilgileri()
-        .then((_) {
-      cinsiyet = Provider.of<HastaUser>(context, listen: false).hasta.cinsiyet;
-    });
     String currentUserEmail =
         Provider.of<Auth>(context, listen: false).userEmail;
     return Column(

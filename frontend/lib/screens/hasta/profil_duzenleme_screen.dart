@@ -257,7 +257,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
           title: const Text('Profil düzenle'),
           centerTitle: true,
         ),
-        drawer: const Drawer(
+        drawer: Drawer(
           child: HastaDrawerScreen(),
         ),
         body: isLoading
