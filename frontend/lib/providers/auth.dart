@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:doktora_sor/models/http_exceptions.dart';
 import 'package:doktora_sor/models/hasta.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -9,6 +12,7 @@ import '../models/doktor.dart';
 class Auth extends ChangeNotifier {
   String userEmail = '';
   String kullaniciAdi = '';
+  String userGender = '';
   String user = '';
 
   get isAuth {
@@ -49,14 +53,32 @@ class Auth extends ChangeNotifier {
       }
       userEmail = userData['email'];
       kullaniciAdi = "${userData['ad']} ${userData['soyad']}";
+      userGender = userData['cinsiyet'];
       user = 'Hasta';
+      await Firebase.initializeApp().then((_) {
+        FirebaseFirestore.instance
+            .collection('/UsersProfileImages')
+            .doc(userEmail)
+            .set({
+          'image': '',
+          'status': 'online',
+        });
+        FirebaseMessaging.instance.getToken().then((token) {
+          FirebaseFirestore.instance
+              .collection('UsersTokens')
+              .doc(userEmail)
+              .set({'token': token});
+        });
+      });
+
       notifyListeners();
     } catch (_) {
       rethrow;
     }
   }
 
-  Future<void> doktor_SignUp(String email, String password, Doktor doktor) async {
+  Future<void> doktor_SignUp(
+      String email, String password, Doktor doktor) async {
     try {
       final url = Uri.parse(
           'http://10.0.2.2:8080/api/doktorlar/doktorEkle'); // 10.0.2.2 for android emulator
@@ -79,15 +101,32 @@ class Auth extends ChangeNotifier {
       //print(json.decode(response.body));
 
       Map<String, dynamic>? userData =
-      (json.decode(response.body) as Map<String, dynamic>) != null
-          ? json.decode(response.body) as Map<String, dynamic>
-          : null;
+          (json.decode(response.body) as Map<String, dynamic>) != null
+              ? json.decode(response.body) as Map<String, dynamic>
+              : null;
       if (userData == null) {
         return;
       }
       userEmail = userData['email'];
       kullaniciAdi = "${userData['ad']} ${userData['soyad']}";
+      userGender = userData['cinsiyet'];
       user = 'Doktor';
+      await Firebase.initializeApp().then((_) {
+        FirebaseFirestore.instance
+            .collection('/UsersProfileImages')
+            .doc(userEmail)
+            .set({
+          'image': '',
+          'status': 'online',
+        });
+        FirebaseMessaging.instance.getToken().then((token) {
+          FirebaseFirestore.instance
+              .collection('UsersTokens')
+              .doc(userEmail)
+              .set({'token': token});
+        });
+      });
+
       notifyListeners();
     } catch (_) {
       rethrow;
@@ -116,11 +155,26 @@ class Auth extends ChangeNotifier {
       }
       userEmail = userData['email'];
       kullaniciAdi = "${userData['ad']} ${userData['soyad']}";
-      if(apiName == 'hastalar'){
+      userGender = userData['cinsiyet'];
+      if (apiName == 'hastalar') {
         user = 'Hasta';
-      }else{
+      } else {
         user = 'Doktor';
       }
+      await Firebase.initializeApp().then((_) {
+        FirebaseFirestore.instance
+            .collection('/UsersProfileImages')
+            .doc(userEmail)
+            .update({
+          'status': 'online',
+        });
+        FirebaseMessaging.instance.getToken().then((token) {
+          FirebaseFirestore.instance
+              .collection('UsersTokens')
+              .doc(userEmail)
+              .set({'token': token});
+        });
+      });
       notifyListeners();
     } catch (_) {
       rethrow;
@@ -143,8 +197,6 @@ class Auth extends ChangeNotifier {
       rethrow;
     }
   }
-
-
 
   void logOut(BuildContext context) async {
     bool Cikis_yap = await showDialog(
@@ -172,6 +224,14 @@ class Auth extends ChangeNotifier {
     if (!Cikis_yap) {
       return;
     }
+    await Firebase.initializeApp().then((_) {
+      FirebaseFirestore.instance
+          .collection('/UsersProfileImages')
+          .doc(userEmail)
+          .update({
+        'status': 'offline',
+      });
+    });
     Navigator.of(context).pushReplacementNamed('/');
     userEmail = '';
     notifyListeners();

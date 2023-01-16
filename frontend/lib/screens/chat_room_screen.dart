@@ -15,6 +15,31 @@ class ChatRoom extends StatefulWidget {
 }
 
 class _ChatRoomState extends State<ChatRoom> {
+  var firebaseFuture;
+  var firebaseStream;
+  bool init = true;
+
+
+  @override
+  void didChangeDependencies() {
+    if(init){
+      Map<String, String> chatRoomInfo =
+      ModalRoute.of(context)!.settings.arguments as Map<String, String>;
+      firebaseFuture = Firebase.initializeApp();
+      firebaseStream = FirebaseFirestore.instance
+          .collection(
+          '/Users/${chatRoomInfo['hastaEmail']}/konustuklari/${chatRoomInfo['doktorEmail']}/sohbet')
+          .orderBy(
+        'sentAt',
+        descending: true,
+      )
+          .snapshots();
+      init = false;
+    }
+
+    super.didChangeDependencies();
+  }
+
   @override
   Widget build(BuildContext context) {
     Map<String, String> chatRoomInfo =
@@ -48,7 +73,7 @@ class _ChatRoomState extends State<ChatRoom> {
           children: [
             Expanded(
               child: FutureBuilder(
-                future: Firebase.initializeApp(),
+                future: firebaseFuture,
                 builder: (ctx, data) {
                   if (data.error != null) {
                     return const Center(
@@ -60,15 +85,9 @@ class _ChatRoomState extends State<ChatRoom> {
                       child: CircularProgressIndicator(),
                     );
                   }
+                  print(firebaseStream);
                   return StreamBuilder(
-                    stream: FirebaseFirestore.instance
-                        .collection(
-                            '/Users/${chatRoomInfo['hastaEmail']}/konustuklari/${chatRoomInfo['doktorEmail']}/sohbet')
-                        .orderBy(
-                          'sentAt',
-                          descending: true,
-                        )
-                        .snapshots(),
+                    stream: firebaseStream as Stream,
                     builder: (ctx, streamSnapshot) {
                       if (streamSnapshot.error != null) {
                         return const Center(

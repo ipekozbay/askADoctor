@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../models/http_exceptions.dart';
 import '../models/yorum.dart';
 
 class YorumProvider extends ChangeNotifier {
@@ -16,6 +17,7 @@ class YorumProvider extends ChangeNotifier {
         body: json.encode({
           'gonderenKullaniciAdi': yorumBilgileri.gonderenKullaniciAdi,
           'gonderenEmail': yorumBilgileri.gonderenEmail,
+          'gonderenKullanicininCinsiyeti': yorumBilgileri.gonderenKullanicininCinsiyeti,
           'alici': yorumBilgileri.alici,
           'icerik': yorumBilgileri.icerik,
         }),
@@ -33,9 +35,11 @@ class YorumProvider extends ChangeNotifier {
 
       yorumlar.add(Yorum(
         alici: yorumData['alici'],
+        gonderenKullanicininCinsiyeti: yorumData['gonderenKullanicininCinsiyeti'],
         gonderenKullaniciAdi: yorumData['gonderenKullaniciAdi'],
         gonderenEmail: yorumData['gonderenEmail'],
         icerik: yorumData['icerik'],
+        createdAt: DateTime.parse(yorumData['createdAt']),
       ));
       notifyListeners();
     } catch (_) {
@@ -60,9 +64,11 @@ class YorumProvider extends ChangeNotifier {
         for (int i = 0; i < yorumlarData.length; i++) {
           yorum = Yorum(
             gonderenKullaniciAdi: yorumlarData[i]['gonderenKullaniciAdi'] as String,
+            gonderenKullanicininCinsiyeti: yorumlarData[i]['gonderenKullanicininCinsiyeti'] as String,
             gonderenEmail: yorumlarData[i]['gonderenEmail'] as String,
             alici: yorumlarData[i]['alici'] as String,
             icerik: yorumlarData[i]['icerik'] as String,
+            createdAt: DateTime.parse(yorumlarData[i]['createdAt']),
           );
           yorumlar.add(yorum);
         }
@@ -72,4 +78,27 @@ class YorumProvider extends ChangeNotifier {
       rethrow;
     }
   }
+
+
+  Future<void> yorumBilgileriniGuncelle(String email, String kullaniciAdi, String cinsiyet) async {
+    try {
+      final url = Uri.parse(
+          'http://10.0.2.2:8080/api/yorumlar/yorumGuncelle/oussama@gmail.com'); // 10.0.2.2 for android emulator
+      await http.patch(
+        url,
+        body: json.encode({
+          'gonderenKullaniciAdi': kullaniciAdi,
+          'gonderenKullanicininCinsiyeti':cinsiyet,
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+      //print(json.decode(response.body));
+
+      print('ffffffffffffffffff');
+    } catch (_) {
+      rethrow;
+    }
+  }
 }
+
+

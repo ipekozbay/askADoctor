@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 import '../../providers/auth.dart';
 import '../../providers/doktor_user.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +14,15 @@ class DoktorDrawerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var cinsiyet;
+    Provider.of<DoktorUser>(context, listen: false)
+        .fetch_doktor_bilgileri()
+        .then((_) {
+      cinsiyet =
+          Provider.of<DoktorUser>(context, listen: false).doktor.cinsiyet;
+    });
+    String currentUserEmail =
+        Provider.of<Auth>(context, listen: false).userEmail;
     return Column(
       children: [
         Container(
@@ -23,16 +35,63 @@ class DoktorDrawerScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Image.asset(
-                    '',
-                    fit: BoxFit.cover,
+                  child: FutureBuilder(
+                    future: Firebase.initializeApp(),
+                    builder: (ctx, data) {
+                      if (data.error != null) {
+                        return const Center(
+                          child: Text('Bir hata oluştu'),
+                        );
+                      }
+                      if (data.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                      return StreamBuilder(
+                        stream: FirebaseFirestore.instance
+                            .collection('/UsersProfileImages')
+                            .doc(currentUserEmail)
+                            .snapshots(),
+                        builder: (ctx, streamSnapshot) {
+                          if (streamSnapshot.error != null) {
+                            return const Center(
+                              child: Text('Bir hata oluştu'),
+                            );
+                          }
+                          if (streamSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final document = streamSnapshot.data!.data();
+                          String imageUrl =
+                              document != null ? document['image'] : '';
+                          return CircleAvatar(
+                            radius: 50,
+                            backgroundImage: imageUrl.isNotEmpty
+                                ? NetworkImage(imageUrl)
+                                : null,
+                            child: imageUrl.isEmpty
+                                ? Icon(
+                                    cinsiyet == 'Erkek'
+                                        ? Icons.man_rounded
+                                        : Icons.woman_rounded,
+                                    size: 80,
+                                  )
+                                : null,
+                          );
+                        },
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(
                   height: 15,
                 ),
                 Consumer<DoktorUser>(
-                  builder: (context,doktor,_) => Container(
+                  builder: (context, doktor, _) => Container(
                     width: double.infinity,
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -65,7 +124,8 @@ class DoktorDrawerScreen extends StatelessWidget {
         ),
         ListTile(
           onTap: () {
-            Navigator.of(context).pushNamed(DoktorProfilDuzenleme.DoktorProfilDuzenlemeRoute);
+            Navigator.of(context)
+                .pushNamed(DoktorProfilDuzenleme.DoktorProfilDuzenlemeRoute);
           },
           leading: const Icon(
             Icons.person,

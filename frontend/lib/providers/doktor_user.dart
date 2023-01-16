@@ -7,8 +7,9 @@ import '../models/http_exceptions.dart';
 class DoktorUser extends ChangeNotifier {
   final String userEmail;
   String kullaniciAdi;
+  String cinsiyet;
 
-  DoktorUser(this.userEmail, this.kullaniciAdi);
+  DoktorUser(this.userEmail, this.kullaniciAdi, this.cinsiyet);
 
   List<Doktor> doktorlar = []; // belirli bir uzmanlik alani icin doktorlarin listesi
 

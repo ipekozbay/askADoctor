@@ -1,4 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/doktor.dart';
 import '../../models/yorum.dart';
@@ -19,19 +22,31 @@ class _DoktorYorumlarState extends State<DoktorYorumlar> {
   late Yorum yorum;
   var yorumController = TextEditingController();
   late Future fetchYorumlar;
+  var firebaseFuture;
 
   @override
   void initState() {
     yorum = Yorum(
       gonderenKullaniciAdi:
           Provider.of<HastaUser>(context, listen: false).kullaniciAdi,
+      gonderenKullanicininCinsiyeti:
+          Provider.of<HastaUser>(context, listen: false).cinsiyet,
       gonderenEmail: Provider.of<HastaUser>(context, listen: false).userEmail,
       alici: widget.doktor.email,
       icerik: '',
+      createdAt: DateTime.now(),
     );
-
+    firebaseFuture = Firebase.initializeApp();
     fetchYorumlar = Provider.of<YorumProvider>(context, listen: false)
         .fetch_yorumlar(widget.doktor.email);
+
+    // DocumentReference documentReference = FirebaseFirestore.instance
+    //     .collection('/UsersProfileImages')
+    //     .doc(widget.yorum.gonderenEmail);
+    // documentReference.get().then((snapshot) {
+    //   imageUrl = snapshot.get('image') ?? '';
+    //   print(imageUrl);
+    // });
     super.initState();
   }
 
@@ -68,6 +83,8 @@ class _DoktorYorumlarState extends State<DoktorYorumlar> {
 
   @override
   Widget build(BuildContext context) {
+    String currentUserName = Provider.of<HastaUser>(context).kullaniciAdi;
+
     return GestureDetector(
       onTap: () {
         final FocusScopeNode currentScope = FocusScope.of(context);
@@ -106,17 +123,95 @@ class _DoktorYorumlarState extends State<DoktorYorumlar> {
                                   (yorum) => Column(
                                     children: [
                                       ListTile(
+                                        leading: FutureBuilder(
+                                          future: firebaseFuture,
+                                          builder: (ctx, data) {
+                                            if (data.error != null) {
+                                              return const Text('!');
+                                            }
+                                            if (data.connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const CircularProgressIndicator();
+                                            }
+
+                                            return StreamBuilder(
+                                              stream: FirebaseFirestore.instance
+                                                  .collection(
+                                                      '/UsersProfileImages')
+                                                  .doc(yorum.gonderenEmail)
+                                                  .snapshots(),
+                                              builder: (ctx, streamSnapshot) {
+                                                if (streamSnapshot.error !=
+                                                    null) {
+                                                  return const Text('!');
+                                                }
+                                                if (streamSnapshot
+                                                        .connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return const CircularProgressIndicator();
+                                                }
+                                                final document =
+                                                    streamSnapshot.data!.data();
+                                                String imageUrl =
+                                                    document != null
+                                                        ? document['image']
+                                                        : '';
+                                                return CircleAvatar(
+                                                  radius: 30,
+                                                  backgroundColor: imageUrl
+                                                          .isEmpty
+                                                      ? Colors.lightBlueAccent
+                                                      : null,
+                                                  backgroundImage: imageUrl
+                                                          .isNotEmpty
+                                                      ? NetworkImage(imageUrl)
+                                                      : null,
+                                                  child: imageUrl.isEmpty
+                                                      ? Icon(
+                                                          yorum.gonderenKullanicininCinsiyeti ==
+                                                                  'Erkek'
+                                                              ? Icons
+                                                                  .man_rounded
+                                                              : Icons
+                                                                  .woman_rounded,
+                                                          size: 40,
+                                                          color: Colors.white,
+                                                        )
+                                                      : null,
+                                                );
+                                              },
+                                            );
+                                          },
+                                        ),
                                         title: Text(
-                                          yorum.gonderenKullaniciAdi,
+                                          currentUserName ==
+                                                  yorum.gonderenKullaniciAdi
+                                              ? 'Siz'
+                                              : yorum.gonderenKullaniciAdi,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                         subtitle: Text(yorum.icerik),
+                                        trailing: Column(
+                                          children: [
+                                            Text(DateTime.now()
+                                                        .difference(
+                                                            yorum.createdAt)
+                                                        .inDays ==
+                                                    0
+                                                ? 'Bugün'
+                                                : DateFormat('d/MM')
+                                                    .format(yorum.createdAt.add(const Duration(hours: 3)))),
+                                            Text(DateFormat.Hm()
+                                                .format(yorum.createdAt.add(const Duration(hours: 3)))),
+                                          ],
+                                        ),
                                       ),
-                                      if (yorumProvider.yorumlar.reversed.last != yorum)
+                                      if (yorumProvider
+                                              .yorumlar.reversed.last !=
+                                          yorum)
                                         const Divider(color: Colors.blue),
-
                                     ],
                                   ),
                                 )
