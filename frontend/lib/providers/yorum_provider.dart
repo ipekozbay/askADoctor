@@ -83,7 +83,7 @@ class YorumProvider extends ChangeNotifier {
   Future<void> yorumBilgileriniGuncelle(String email, String kullaniciAdi, String cinsiyet) async {
     try {
       final url = Uri.parse(
-          'http://10.0.2.2:8080/api/yorumlar/yorumGuncelle/oussama@gmail.com'); // 10.0.2.2 for android emulator
+          'http://10.0.2.2:8080/api/yorumlar/yorumGuncelle/$email'); // 10.0.2.2 for android emulator
       await http.patch(
         url,
         body: json.encode({

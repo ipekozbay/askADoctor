@@ -9,18 +9,28 @@ import 'package:provider/provider.dart';
 import 'profil_duzenleme_screen.dart';
 import 'yorumlar_screen.dart';
 
-class DoktorDrawerScreen extends StatelessWidget {
+class DoktorDrawerScreen extends StatefulWidget {
   const DoktorDrawerScreen({Key? key}) : super(key: key);
 
   @override
+  State<DoktorDrawerScreen> createState() => _DoktorDrawerScreenState();
+}
+
+class _DoktorDrawerScreenState extends State<DoktorDrawerScreen> {
+  var cinsiyet;
+  bool init = true;
+
+  @override
+  void didChangeDependencies() {
+    if(init){
+      Provider.of<DoktorUser>(context, listen: false).cinsiyet;
+      init = false;
+    }
+    super.didChangeDependencies();
+  }
+  @override
   Widget build(BuildContext context) {
-    var cinsiyet;
-    Provider.of<DoktorUser>(context, listen: false)
-        .fetch_doktor_bilgileri()
-        .then((_) {
-      cinsiyet =
-          Provider.of<DoktorUser>(context, listen: false).doktor.cinsiyet;
-    });
+
     String currentUserEmail =
         Provider.of<Auth>(context, listen: false).userEmail;
     return Column(

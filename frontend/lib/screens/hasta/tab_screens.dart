@@ -43,7 +43,7 @@ class _TabsScreenState extends State<TabsScreen> {
         title: Text(pages[selectedIndex]['title'] as String),
         centerTitle: true,
       ),
-      drawer: const Drawer(
+      drawer: Drawer(
         child: HastaDrawerScreen(),
       ),
       body: pages[selectedIndex]['page'] as Widget,
