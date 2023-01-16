@@ -6,4 +6,7 @@ router.post('/yorumEkle', yorumController.yorumEkle)
 router.get('/:alici', yorumController.getYorumByAlici)
 
 
+router.patch('/yorumGuncelle/:gonderenEmail', yorumController.yorumBilgileriniGuncelle)
+
+
 module.exports = router

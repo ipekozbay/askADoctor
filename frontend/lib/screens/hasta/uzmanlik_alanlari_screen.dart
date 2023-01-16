@@ -15,16 +15,28 @@ class UzmanlikAlanlari extends StatelessWidget {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(10),
         child: Column(
           children: tumUzmanlikAlanlari
               .map(
-                (uzmanlikAlan) => ListTile(
-                  onTap: () {
-                    Navigator.of(context).pushNamed(
-                        DoktorlarScreen.DoktorlarScreenRoute,
-                        arguments: uzmanlikAlan);
-                  },
-                  title: Text(uzmanlikAlan),
+                (uzmanlikAlan) => Column(
+                  children: [
+                    ListTile(
+                      onTap: () {
+                        Navigator.of(context).pushNamed(
+                            DoktorlarScreen.DoktorlarScreenRoute,
+                            arguments: uzmanlikAlan);
+                      },
+                      title: Text(
+                        uzmanlikAlan,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                          color: Colors.lightBlueAccent),
+                    ),
+                    if (tumUzmanlikAlanlari.last != uzmanlikAlan)
+                      const Divider(color: Colors.lightBlueAccent),
+                  ],
                 ),
               )
               .toList(),

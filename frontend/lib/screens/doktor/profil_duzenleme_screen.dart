@@ -1,7 +1,14 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:doktora_sor/models/tip_bilim_dallari.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../models/doktor.dart';
+import '../../providers/auth.dart';
 import '../../providers/doktor_user.dart';
 import '/models/http_exceptions.dart';
 import 'dawer_screen.dart';
@@ -18,6 +25,7 @@ class DoktorProfilDuzenleme extends StatefulWidget {
 class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
   var form = GlobalKey<FormState>();
   bool isLoading = false;
+  bool init = true;
   final ScrollController scrollController = ScrollController();
   late final adController;
   late final soyadController;
@@ -27,6 +35,17 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
   late String dropDownValue_bilimDali;
   late String dropDownValue_cinsiyet;
   late String dropDownValue_uzmanlikAlani;
+  var profileImage;
+  var firebaseFuture;
+  var firebaseStream;
+
+  void previewImage() async {
+    final pickedImage =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    setState(() {
+      profileImage = File(pickedImage!.path);
+    });
+  }
 
   Doktor doktor = Doktor(
     email: '',
@@ -72,6 +91,8 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
   }
 
   Future<void> saveForm() async {
+    String currentUserEmail =
+        Provider.of<Auth>(context, listen: false).userEmail;
     final isValid = form.currentState!.validate();
     if (!isValid) {
       return;
@@ -82,6 +103,36 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
     doktor.bilimDali = dropDownValue_bilimDali.trim();
     doktor.uzmanlikAlani = dropDownValue_uzmanlikAlani.trim();
     doktor.hastaneTuru = hastaneTuru.trim();
+    if (profileImage != null) {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('usersProfileImages')
+          .child('$currentUserEmail.jpg');
+      await ref.putFile(profileImage).whenComplete(() {});
+      final url = await ref.getDownloadURL();
+      FirebaseFirestore.instance
+          .collection('/UsersProfileImages')
+          .doc(currentUserEmail)
+          .set({
+        'image': url,
+      });
+    }
+
+    FirebaseFirestore.instance
+        .collection('/Users/$currentUserEmail/konustuklari')
+        .get()
+        .then((snapshot) {
+      for (var doc in snapshot.docs) {
+        FirebaseFirestore.instance
+            .collection('/Users/$currentUserEmail/konustuklari')
+            .doc(doc.id)
+            .update({'doktorUserName': '${doktor.ad} ${doktor.soyad}','doktorCinsiyet': doktor.cinsiyet});
+        FirebaseFirestore.instance
+            .collection('/Users/${doc.id}/konustuklari')
+            .doc(currentUserEmail)
+            .update({'doktorUserName': '${doktor.ad} ${doktor.soyad}','doktorCinsiyet': doktor.cinsiyet});
+      }
+    });
 
     try {
       await Provider.of<DoktorUser>(context, listen: false)
@@ -107,27 +158,39 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
     }
   }
 
+
   @override
-  void initState() {
-    isLoading = true;
-    Provider.of<DoktorUser>(context, listen: false)
-        .fetch_doktor_bilgileri()
-        .then((_) {
-      Doktor userData = Provider.of<DoktorUser>(context, listen: false).doktor;
-      adController = TextEditingController(text: userData.ad);
-      soyadController = TextEditingController(text: userData.soyad);
-      mezuniyetUniController =
-          TextEditingController(text: userData.mezuniyetUni);
-      hastaneAdiController = TextEditingController(text: userData.hastaneAdi);
-      dropDownValue_cinsiyet = userData.cinsiyet;
-      dropDownValue_bilimDali = userData.bilimDali;
-      dropDownValue_uzmanlikAlani = userData.uzmanlikAlani;
-      hastaneTuru = userData.hastaneTuru;
-      setState(() {
-        isLoading = false;
+  void didChangeDependencies() {
+    if (init) {
+      String currentUserEmail = Provider.of<Auth>(context).userEmail;
+      firebaseFuture = Firebase.initializeApp();
+      isLoading = true;
+      firebaseStream = FirebaseFirestore.instance
+          .collection('/UsersProfileImages')
+          .doc(currentUserEmail)
+          .snapshots();
+      Provider.of<DoktorUser>(context, listen: false)
+          .fetch_doktor_bilgileri()
+          .then((_) {
+        Doktor userData =
+            Provider.of<DoktorUser>(context, listen: false).doktor;
+        adController = TextEditingController(text: userData.ad);
+        soyadController = TextEditingController(text: userData.soyad);
+        mezuniyetUniController =
+            TextEditingController(text: userData.mezuniyetUni);
+        hastaneAdiController = TextEditingController(text: userData.hastaneAdi);
+        dropDownValue_cinsiyet = userData.cinsiyet;
+        dropDownValue_bilimDali = userData.bilimDali;
+        dropDownValue_uzmanlikAlani = userData.uzmanlikAlani;
+        hastaneTuru = userData.hastaneTuru;
+        setState(() {
+          isLoading = false;
+        });
       });
-    });
-    super.initState();
+      init = false;
+    }
+
+    super.didChangeDependencies();
   }
 
   @override
@@ -159,10 +222,95 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
                         key: form,
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.only(
-                              bottom: 40, left: 20, top: 20, right: 20),
+                              bottom: 5, left: 20, top: 10, right: 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              FutureBuilder(
+                                future: firebaseFuture,
+                                builder: (ctx, data) {
+                                  if (data.error != null) {
+                                    return const Center(
+                                      child: Text('Bir hata oluştu'),
+                                    );
+                                  }
+                                  if (data.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+
+                                  return StreamBuilder(
+                                    stream: firebaseStream as Stream,
+                                    builder: (ctx, streamSnapshot) {
+                                      if (streamSnapshot.error != null) {
+                                        return const Center(
+                                          child: Text('Bir hata oluştu'),
+                                        );
+                                      }
+                                      if (streamSnapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      }
+                                      final document =
+                                          streamSnapshot.data!.data();
+                                      String imageUrl = document != null
+                                          ? document['image']
+                                          : '';
+                                      return Column(
+                                        children: [
+                                          if (profileImage == null)
+                                            Container(
+                                              alignment: Alignment.center,
+                                              child: CircleAvatar(
+                                                radius: 40,
+                                                backgroundColor:
+                                                    imageUrl.isEmpty
+                                                        ? Colors.lightBlueAccent
+                                                        : null,
+                                                backgroundImage:
+                                                    imageUrl.isNotEmpty
+                                                        ? NetworkImage(imageUrl)
+                                                        : null,
+                                                child: imageUrl.isEmpty
+                                                    ? Icon(
+                                                        dropDownValue_cinsiyet ==
+                                                                'Erkek'
+                                                            ? Icons.man_rounded
+                                                            : Icons
+                                                                .woman_rounded,
+                                                        color: Colors.white,
+                                                        size: 60,
+                                                      )
+                                                    : null,
+                                              ),
+                                            ),
+                                          if (profileImage != null)
+                                            Container(
+                                              alignment: Alignment.center,
+                                              child: CircleAvatar(
+                                                radius: 40,
+                                                backgroundImage:
+                                                    FileImage(profileImage),
+                                              ),
+                                            ),
+                                          TextButton.icon(
+                                            onPressed: previewImage,
+                                            icon: const Icon(Icons.image),
+                                            label: Text(profileImage == null &&
+                                                    imageUrl.isEmpty
+                                                ? 'Fotoğraf Yükleyiniz'
+                                                : 'Fotoğraf Değiştiriniz'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
                               Container(
                                 margin: const EdgeInsets.symmetric(vertical: 5),
                                 child: TextFormField(
@@ -242,7 +390,7 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
                                 ),
                               ),
                               const SizedBox(
-                                height: 15,
+                                height: 10,
                               ),
                               DropdownButtonFormField(
                                 itemHeight: 60,
@@ -277,7 +425,7 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
                                 },
                               ),
                               const SizedBox(
-                                height: 20,
+                                height: 15,
                               ),
                               DropdownButtonFormField(
                                 itemHeight: 60,
@@ -304,7 +452,7 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
                                 },
                               ),
                               const SizedBox(
-                                height: 20,
+                                height: 15,
                               ),
                               DropdownButtonFormField(
                                 itemHeight: 60,
@@ -331,7 +479,7 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
                                 },
                               ),
                               const SizedBox(
-                                height: 40,
+                                height: 25,
                               ),
                               const Text(
                                 'Nerede çalışıyorsunuz ?',
@@ -371,7 +519,7 @@ class _DoktorProfilDuzenlemeState extends State<DoktorProfilDuzenleme> {
                                 ],
                               ),
                               const SizedBox(
-                                height: 20,
+                                height: 15,
                               ),
                               Container(
                                 margin: const EdgeInsets.symmetric(vertical: 5),

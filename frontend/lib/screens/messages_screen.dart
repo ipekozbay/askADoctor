@@ -71,15 +71,79 @@ class _MesajlarState extends State<Mesajlar> {
                     'hastaEmail': documents[index]['hastaEmail'],
                     'doktorEmail': documents[index]['doktorEmail'],
                     'hastaUserName': documents[index]['hastaUserName'],
+                    'hastaCinsiyet': documents[index]['hastaCinsiyet'],
+                    'doktorCinsiyet': documents[index]['doktorCinsiyet'],
                     'doktorUserName': documents[index]['doktorUserName'],
                     'isNewMessage': documents[index]['isNewMessage'],
                   };
 
+                  String otherEmail =
+                      currentUserEmail == documents[index]['hastaEmail']
+                          ? documents[index]['doktorEmail']
+                          : documents[index]['hastaEmail'];
+                  String cinsiyet =
+                      currentUserEmail == documents[index]['hastaEmail']
+                          ? documents[index]['doktorCinsiyet']
+                          : documents[index]['hastaCinsiyet'];
                   return ListTile(
                     onTap: () {
                       Navigator.of(context).pushNamed(ChatRoom.chatRoomRoute,
                           arguments: chatRoomInfo);
                     },
+                    leading: StreamBuilder(
+                      stream: FirebaseFirestore.instance
+                          .collection('/UsersProfileImages')
+                          .doc(otherEmail)
+                          .snapshots(),
+                      builder: (ctx, streamSnapshot) {
+                        if (streamSnapshot.error != null) {
+                          return const Text('!');
+                        }
+                        if (streamSnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const CircularProgressIndicator();
+                        }
+                        final document = streamSnapshot.data!.data();
+                        String imageUrl =
+                            document != null ? document['image'] : '';
+                        String onlinestatus = document != null
+                            ? document['status'] == 'online'
+                                ? 'online'
+                                : 'offline'
+                            : '';
+                        return Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: imageUrl.isEmpty
+                                  ? Colors.lightBlueAccent
+                                  : null,
+                              backgroundImage: imageUrl.isNotEmpty
+                                  ? NetworkImage(imageUrl)
+                                  : null,
+                              child: imageUrl.isEmpty
+                                  ? Icon(
+                                      cinsiyet == 'Erkek'
+                                          ? Icons.man_rounded
+                                          : Icons.woman_rounded,
+                                      size: 40,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                            Positioned(
+                              right: 6,
+                              child: CircleAvatar(
+                                radius: 5,
+                                backgroundColor: onlinestatus == 'online'
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                            )
+                          ],
+                        );
+                      },
+                    ),
                     title: Text(
                       currentUserEmail == documents[index]['hastaEmail']
                           ? documents[index]['doktorUserName']

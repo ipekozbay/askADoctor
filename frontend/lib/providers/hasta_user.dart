@@ -8,8 +8,9 @@ import '../models/http_exceptions.dart';
 class HastaUser extends ChangeNotifier{
   final String userEmail;
   String kullaniciAdi;
+  String cinsiyet;
 
-  HastaUser(this.userEmail, this.kullaniciAdi);
+  HastaUser(this.userEmail, this.kullaniciAdi, this.cinsiyet);
 
   Hasta hasta = Hasta(
     ad: '',
@@ -40,7 +41,6 @@ class HastaUser extends ChangeNotifier{
         }),
         headers: {'Content-Type': 'application/json'},
       );
-
       await fetch_hasta_bilgileri();
       throw HttpException('Bilgileriniz güncellendi');
     } catch (_) {
@@ -78,4 +78,36 @@ class HastaUser extends ChangeNotifier{
       rethrow;
     }
   }
+
+
+  Future<void> get_hasta_bilgileri(String email) async {
+    try {
+      final url = Uri.parse('http://10.0.2.2:8080/api/hastalar/$email');
+      final response = await http.get(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+      Map<String, dynamic>? userData;
+      if (response.body.isNotEmpty) {
+        userData = (json.decode(response.body) as Map<String, dynamic>) != null
+            ? json.decode(response.body) as Map<String, dynamic>
+            : null;
+        if (userData == null) {
+          return;
+        }
+        hasta.ad = userData['ad'];
+        hasta.soyad = userData['soyad'];
+        hasta.yas = userData['yas'];
+        hasta.cinsiyet = userData['cinsiyet'];
+        hasta.boy = userData['boy'];
+        hasta.kilo = userData['kilo'];
+        hasta.kanGrubu = userData['kanGrubu'];
+        hasta.kronikHastalik = userData['kronikHastalik'];
+        notifyListeners();
+      }
+    } catch (_) {
+      rethrow;
+    }
+  }
+
 }

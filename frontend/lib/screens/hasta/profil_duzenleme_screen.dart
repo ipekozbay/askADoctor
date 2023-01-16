@@ -1,6 +1,13 @@
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:doktora_sor/providers/yorum_provider.dart';
 import 'package:doktora_sor/screens/hasta/drawer_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../providers/auth.dart';
 import '/models/hasta.dart';
 import '/models/http_exceptions.dart';
 import '/providers/hasta_user.dart';
@@ -18,6 +25,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
   var form = GlobalKey<FormState>();
   final itemKey = GlobalKey();
   bool isLoading = false;
+  bool init = true;
   final ScrollController scrollController = ScrollController();
   late final adController;
   late final soyadController;
@@ -28,6 +36,17 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
   late String dropDownValue_boy;
   late String dropDownValue_kilo;
   late String dropDownValue_kan_grubu;
+  var profileImage;
+  var firebaseFuture;
+  var firebaseStream;
+
+  void previewImage() async {
+    final pickedImage =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    setState(() {
+      profileImage = File(pickedImage!.path);
+    });
+  }
 
   List<String> kan_gruplari = [
     'Bilinmiyor',
@@ -107,13 +126,14 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
     return ages;
   }
 
-  Future<void> saveForm() async {
+  Future<void> saveForm(BuildContext context) async {
+    String currentUserEmail =
+        Provider.of<Auth>(context, listen: false).userEmail;
     final isValid = form.currentState!.validate();
     if (!isValid) {
       return;
     }
     form.currentState!.save();
-
     hasta.cinsiyet = dropDownValue_cinsiyet.trim();
     hasta.yas = dropDownValue_yas.trim();
     hasta.boy = dropDownValue_boy.trim();
@@ -121,9 +141,53 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
     hasta.kanGrubu = dropDownValue_kan_grubu.trim();
     if (kronikHastalik == 'Hayır') hasta.kronikHastalik = '';
 
+    if (profileImage != null) {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('usersProfileImages')
+          .child('$currentUserEmail.jpg');
+      await ref.putFile(profileImage).whenComplete(() {});
+      final url = await ref.getDownloadURL();
+      FirebaseFirestore.instance
+          .collection('/UsersProfileImages')
+          .doc(currentUserEmail)
+          .set({
+        'image': url,
+      });
+    }
+
+    FirebaseFirestore.instance
+        .collection('/Users/$currentUserEmail/konustuklari')
+        .get()
+        .then((snapshot) {
+      for (var doc in snapshot.docs) {
+        FirebaseFirestore.instance
+            .collection('/Users/$currentUserEmail/konustuklari')
+            .doc(doc.id)
+            .update({
+          'hastaUserName': '${hasta.ad} ${hasta.soyad}',
+          'hastaCinsiyet': hasta.cinsiyet
+        });
+        FirebaseFirestore.instance
+            .collection('/Users/${doc.id}/konustuklari')
+            .doc(currentUserEmail)
+            .update({
+          'hastaUserName': '${hasta.ad} ${hasta.soyad}',
+          'hastaCinsiyet': hasta.cinsiyet
+        });
+      }
+    });
+
     try {
+      Provider.of<YorumProvider>(context, listen: false)
+          .yorumBilgileriniGuncelle(
+        currentUserEmail,
+        '${hasta.ad} ${hasta.soyad}',
+        hasta.cinsiyet,
+      );
       await Provider.of<HastaUser>(context, listen: false)
           .ProfilBilgileriniGuncelle(hasta);
+
     } on HttpException catch (info) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -146,27 +210,37 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
   }
 
   @override
-  void initState() {
-    isLoading = true;
-    Provider.of<HastaUser>(context, listen: false)
-        .fetch_hasta_bilgileri()
-        .then((_) {
-      Hasta userData = Provider.of<HastaUser>(context, listen: false).hasta;
-      adController = TextEditingController(text: userData.ad);
-      soyadController = TextEditingController(text: userData.soyad);
-      kronikHastalik = userData.kronikHastalik.isEmpty ? 'Hayır' : 'Evet';
-      kronikHastalikController =
-          TextEditingController(text: userData.kronikHastalik);
-      dropDownValue_cinsiyet = userData.cinsiyet;
-      dropDownValue_yas = userData.yas;
-      dropDownValue_boy = userData.boy;
-      dropDownValue_kilo = userData.kilo;
-      dropDownValue_kan_grubu = userData.kanGrubu;
-      setState(() {
-        isLoading = false;
+  void didChangeDependencies() {
+    if (init) {
+      String currentUserEmail = Provider.of<Auth>(context).userEmail;
+      firebaseFuture = Firebase.initializeApp();
+      isLoading = true;
+      firebaseStream = FirebaseFirestore.instance
+          .collection('/UsersProfileImages')
+          .doc(currentUserEmail)
+          .snapshots();
+      Provider.of<HastaUser>(context, listen: false)
+          .fetch_hasta_bilgileri()
+          .then((_) {
+        Hasta userData = Provider.of<HastaUser>(context, listen: false).hasta;
+        adController = TextEditingController(text: userData.ad);
+        soyadController = TextEditingController(text: userData.soyad);
+        kronikHastalik = userData.kronikHastalik.isEmpty ? 'Hayır' : 'Evet';
+        kronikHastalikController =
+            TextEditingController(text: userData.kronikHastalik);
+        dropDownValue_cinsiyet = userData.cinsiyet;
+        dropDownValue_yas = userData.yas;
+        dropDownValue_boy = userData.boy;
+        dropDownValue_kilo = userData.kilo;
+        dropDownValue_kan_grubu = userData.kanGrubu;
+        setState(() {
+          isLoading = false;
+        });
       });
-    });
-    super.initState();
+      init = false;
+    }
+
+    super.didChangeDependencies();
   }
 
   @override
@@ -198,10 +272,95 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
                         key: form,
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.only(
-                              bottom: 40, left: 20, top: 20, right: 20),
+                              bottom: 5, left: 20, top: 10, right: 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              FutureBuilder(
+                                future: firebaseFuture,
+                                builder: (ctx, data) {
+                                  if (data.error != null) {
+                                    return const Center(
+                                      child: Text('Bir hata oluştu'),
+                                    );
+                                  }
+                                  if (data.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+
+                                  return StreamBuilder(
+                                    stream: firebaseStream as Stream,
+                                    builder: (ctx, streamSnapshot) {
+                                      if (streamSnapshot.error != null) {
+                                        return const Center(
+                                          child: Text('Bir hata oluştu'),
+                                        );
+                                      }
+                                      if (streamSnapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      }
+                                      final document =
+                                          streamSnapshot.data!.data();
+                                      String imageUrl = document != null
+                                          ? document['image']
+                                          : '';
+                                      return Column(
+                                        children: [
+                                          if (profileImage == null)
+                                            Container(
+                                              alignment: Alignment.center,
+                                              child: CircleAvatar(
+                                                radius: 40,
+                                                backgroundColor:
+                                                    imageUrl.isEmpty
+                                                        ? Colors.lightBlueAccent
+                                                        : null,
+                                                backgroundImage:
+                                                    imageUrl.isNotEmpty
+                                                        ? NetworkImage(imageUrl)
+                                                        : null,
+                                                child: imageUrl.isEmpty
+                                                    ? Icon(
+                                                        dropDownValue_cinsiyet ==
+                                                                'Erkek'
+                                                            ? Icons.man_rounded
+                                                            : Icons
+                                                                .woman_rounded,
+                                                        color: Colors.white,
+                                                        size: 60,
+                                                      )
+                                                    : null,
+                                              ),
+                                            ),
+                                          if (profileImage != null)
+                                            Container(
+                                              alignment: Alignment.center,
+                                              child: CircleAvatar(
+                                                radius: 40,
+                                                backgroundImage:
+                                                    FileImage(profileImage),
+                                              ),
+                                            ),
+                                          TextButton.icon(
+                                            onPressed: previewImage,
+                                            icon: const Icon(Icons.image),
+                                            label: Text(profileImage == null &&
+                                                    imageUrl.isEmpty
+                                                ? 'Fotoğraf Yükleyiniz'
+                                                : 'Fotoğraf Değiştiriniz'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
                               Container(
                                 margin: const EdgeInsets.symmetric(vertical: 5),
                                 child: TextFormField(
@@ -254,7 +413,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
                                 ),
                               ),
                               const SizedBox(
-                                height: 15,
+                                height: 10,
                               ),
                               Row(
                                 children: [
@@ -324,7 +483,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
                                 ],
                               ),
                               const SizedBox(
-                                height: 20,
+                                height: 10,
                               ),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -387,7 +546,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
                                 ],
                               ),
                               const SizedBox(
-                                height: 20,
+                                height: 10,
                               ),
                               SizedBox(
                                 width: 160,
@@ -425,7 +584,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
                                 ),
                               ),
                               const SizedBox(
-                                height: 40,
+                                height: 20,
                               ),
                               const Text(
                                 'Kronik hastalığınız var mı ?',
@@ -528,7 +687,7 @@ class _HastaProfilDuzenlemeState extends State<HastaProfilDuzenleme> {
                     child: ElevatedButton(
                       onPressed: () {
                         FocusScope.of(context).unfocus();
-                        saveForm();
+                        saveForm(context);
                       },
                       style: ElevatedButton.styleFrom(
                         shape: const RoundedRectangleBorder(

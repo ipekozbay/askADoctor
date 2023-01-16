@@ -31,12 +31,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dropdown_button2: ^1.9.2
   provider: ^6.0.5
   http: ^0.13.5
   cloud_firestore: ^4.3.1
   firebase_core: ^2.4.1
   intl: ^0.18.0
+  image_picker: ^0.8.6
+  firebase_storage: ^11.0.10
+  firebase_messaging: ^14.2.1
+  flutter_local_notifications: ^13.0.0
 
 
   # The following adds the Cupertino Icons font to your application.
